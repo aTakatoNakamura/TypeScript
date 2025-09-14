@@ -21,6 +21,7 @@ import {
     BaseNodeFactory,
     BigIntLiteral,
     BinaryExpression,
+    PipeExpression,
     BinaryOperator,
     BinaryOperatorToken,
     BindingElement,
@@ -673,7 +674,9 @@ export function createNodeFactory(flags: NodeFactoryFlags, baseFactory: BaseNode
         createPostfixUnaryExpression,
         updatePostfixUnaryExpression,
         createBinaryExpression,
+        createPipeExpression,
         updateBinaryExpression,
+        updatePipeExpression,
         createConditionalExpression,
         updateConditionalExpression,
         createTemplateExpression,
@@ -3466,6 +3469,29 @@ export function createNodeFactory(flags: NodeFactoryFlags, baseFactory: BaseNode
                 || node.operatorToken !== operator
                 || node.right !== right
             ? update(createBinaryExpression(left, operator, right), node)
+            : node;
+    }
+
+    // @api
+    function createPipeExpression(left: Expression, operator: Token<SyntaxKind.BarGreaterThanToken>, right: Expression) {
+        const node = createBaseNode<PipeExpression>(SyntaxKind.PipeExpression);
+        node.left = parenthesizerRules().parenthesizeLeftSideOfBinary(SyntaxKind.BarGreaterThanToken, left);
+        node.operatorToken = operator;
+        node.right = parenthesizerRules().parenthesizeRightSideOfBinary(SyntaxKind.BarGreaterThanToken, node.left, right);
+        node.transformFlags |= propagateChildFlags(node.left) |
+            propagateChildFlags(node.operatorToken) |
+            propagateChildFlags(node.right) |
+            TransformFlags.ContainsPipeOperator;
+        node.jsDoc = undefined; // initialized by parser (JsDocContainer)
+        return node;
+    }
+
+    // @api
+    function updatePipeExpression(node: PipeExpression, left: Expression, operator: Token<SyntaxKind.BarGreaterThanToken>, right: Expression) {
+        return node.left !== left
+                || node.operatorToken !== operator
+                || node.right !== right
+            ? update(createPipeExpression(left, operator, right), node)
             : node;
     }
 

@@ -15,6 +15,7 @@ import {
     isAssertsKeyword,
     isAsteriskToken,
     isAwaitKeyword,
+    isBarGreaterThanToken,
     isBinaryOperatorToken,
     isBindingElement,
     isBindingName,
@@ -1170,6 +1171,14 @@ const visitEachChildTable: VisitEachChildTable = {
             node,
             Debug.checkDefined(nodeVisitor(node.left, visitor, isExpression)),
             tokenVisitor ? Debug.checkDefined(nodeVisitor(node.operatorToken, tokenVisitor, isBinaryOperatorToken)) : node.operatorToken,
+            Debug.checkDefined(nodeVisitor(node.right, visitor, isExpression)),
+        );
+    },
+    [SyntaxKind.PipeExpression]: function visitEachChildOfPipeExpression(node, visitor, context, _nodesVisitor, nodeVisitor, tokenVisitor) {
+        return context.factory.updatePipeExpression(
+            node,
+            Debug.checkDefined(nodeVisitor(node.left, visitor, isExpression)),
+            tokenVisitor ? Debug.checkDefined(nodeVisitor(node.operatorToken, tokenVisitor, isBarGreaterThanToken)) : node.operatorToken,
             Debug.checkDefined(nodeVisitor(node.right, visitor, isExpression)),
         );
     },

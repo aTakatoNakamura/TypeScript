@@ -946,6 +946,7 @@ import {
     Path,
     pathIsRelative,
     PatternAmbientModule,
+    PipeExpression,
     PlusToken,
     PostfixUnaryExpression,
     PredicateSemantics,
@@ -27593,6 +27594,19 @@ export function createTypeChecker(host: TypeCheckerHost): TypeChecker {
     // EXPRESSION TYPE CHECKING
 
     function getCannotFindNameDiagnosticForName(node: Identifier): DiagnosticMessage {
+        // @ts-ignore DEBUG CODE ONLY, REMOVE ME WHEN DONE
+        console.log("🔍 Checker: getCannotFindNameDiagnosticForName called", {
+            hasNode: !!node,
+            hasEscapedText: !!node?.escapedText,
+            escapedText: node?.escapedText?.toString()
+        });
+        
+        if (!node?.escapedText) {
+            // @ts-ignore DEBUG CODE ONLY, REMOVE ME WHEN DONE
+            console.log("🔍 Checker: node or escapedText is undefined, returning generic diagnostic");
+            return Diagnostics.Cannot_find_name_0;
+        }
+        
         switch (node.escapedText) {
             case "document":
             case "console":
@@ -30967,6 +30981,12 @@ export function createTypeChecker(host: TypeCheckerHost): TypeChecker {
     }
 
     function checkIdentifier(node: Identifier, checkMode: CheckMode | undefined): Type {
+        if (!node) {
+            // @ts-ignore DEBUG CODE ONLY, REMOVE ME WHEN DONE
+            console.log("🔍 Checker: checkIdentifier called with undefined node, returning errorType");
+            return errorType;
+        }
+        
         if (isThisInTypeQuery(node)) {
             return checkThisExpression(node);
         }
@@ -39925,8 +39945,8 @@ export function createTypeChecker(host: TypeCheckerHost): TypeChecker {
                     );
                 }
                 return getUnaryResultType(operandType);
-        }
-        return errorType;
+            }
+            return errorType;
     }
 
     function checkPostfixUnaryExpression(node: PostfixUnaryExpression): Type {
@@ -40600,6 +40620,48 @@ export function createTypeChecker(host: TypeCheckerHost): TypeChecker {
         return PredicateSemantics.Never;
     }
 
+    function checkPipeExpression(node: PipeExpression, checkMode?: CheckMode): Type {
+        
+        // Ensure the node has proper source file association
+        if (!node?.parent) {
+            // @ts-ignore DEBUG CODE ONLY, REMOVE ME WHEN DONE
+            return anyType;
+        }
+        
+        if (!node.left || !node.right) {
+            // @ts-ignore DEBUG CODE ONLY, REMOVE ME WHEN DONE
+            console.log("🔍 Checker: PipeExpression missing left or right node, returning anyType");
+            return anyType;
+        }
+        
+        // Temporarily set parent references if missing to prevent crashes
+        if (!node.left.parent) {
+            (node.left as any).parent = node;
+        }
+        if (!node.right.parent) {
+            (node.right as any).parent = node;
+        }
+        
+        // @ts-ignore DEBUG CODE ONLY, REMOVE ME WHEN DONE
+        console.log("🔍 Checker: About to check left expression");
+        
+        // Check the left side (the value being piped)
+        const leftType = checkExpression(node.left, checkMode);
+        
+        // @ts-ignore DEBUG CODE ONLY, REMOVE ME WHEN DONE
+        console.log("🔍 Checker: About to check right expression");
+        
+        // Check the right side (the function to apply)
+        const rightType = checkExpression(node.right, checkMode);
+        
+        // @ts-ignore DEBUG CODE ONLY, REMOVE ME WHEN DONE
+        console.log("🔍 Checker: checkPipeExpression completed successfully");
+        
+        // For now, just return the right side type
+        // TODO: Implement proper pipe expression semantics
+        return rightType;
+    }
+
     // Note that this and `checkBinaryExpression` above should behave mostly the same, except this elides some
     // expression-wide checks and does not use a work stack to fold nested binary expressions into the same callstack frame
     function checkBinaryLikeExpression(left: Expression, operatorToken: BinaryOperatorToken, right: Expression, checkMode?: CheckMode, errorNode?: Node): Type {
@@ -40659,15 +40721,17 @@ export function createTypeChecker(host: TypeCheckerHost): TypeChecker {
                 leftType = checkNonNullType(leftType, left);
                 rightType = checkNonNullType(rightType, right);
 
-                let suggestedOperator: PunctuationSyntaxKind | undefined;
                 // if a user tries to apply a bitwise operator to 2 boolean operands
                 // try and return them a helpful suggestion
+                const suggestedOperator = getSuggestedBooleanOperator(operatorToken.kind);
                 if (
                     (leftType.flags & TypeFlags.BooleanLike) &&
                     (rightType.flags & TypeFlags.BooleanLike) &&
-                    (suggestedOperator = getSuggestedBooleanOperator(operatorToken.kind)) !== undefined
+                    suggestedOperator !== undefined
                 ) {
-                    error(errorNode || operatorToken, Diagnostics.The_0_operator_is_not_allowed_for_boolean_types_Consider_using_1_instead, tokenToString(operatorToken.kind), tokenToString(suggestedOperator));
+                    Debug.assert(suggestedOperator !== undefined);
+                    Debug.assert(operatorToken.kind !== undefined);
+                    error(errorNode || operatorToken, Diagnostics.The_0_operator_is_not_allowed_for_boolean_types_Consider_using_1_instead, tokenToString(operatorToken.kind as number), tokenToString(suggestedOperator as number));
                     return numberType;
                 }
                 else {
@@ -41038,7 +41102,7 @@ export function createTypeChecker(host: TypeCheckerHost): TypeChecker {
                     errNode,
                     wouldWorkWithAwait,
                     Diagnostics.Operator_0_cannot_be_applied_to_types_1_and_2,
-                    tokenToString(operatorToken.kind),
+                    tokenToString(operatorToken.kind as number),
                     leftStr,
                     rightStr,
                 );
@@ -41821,6 +41885,8 @@ export function createTypeChecker(host: TypeCheckerHost): TypeChecker {
                 return checkPostfixUnaryExpression(node as PostfixUnaryExpression);
             case SyntaxKind.BinaryExpression:
                 return checkBinaryExpression(node as BinaryExpression, checkMode);
+            case SyntaxKind.PipeExpression:
+                return checkPipeExpression(node as any, checkMode);
             case SyntaxKind.ConditionalExpression:
                 return checkConditionalExpression(node as ConditionalExpression, checkMode);
             case SyntaxKind.SpreadElement:
@@ -53253,6 +53319,14 @@ export function createTypeChecker(host: TypeCheckerHost): TypeChecker {
     }
 
     function checkGrammarNumericLiteral(node: NumericLiteral) {
+        // Safety check: if node doesn't have proper source file association, skip grammar checking
+        const sourceFile = getSourceFileOfNode(node);
+        if (!sourceFile || !sourceFile.text) {
+            // @ts-ignore DEBUG CODE ONLY, REMOVE ME WHEN DONE
+            console.log("🔍 Checker: Skipping grammar check for numeric literal due to missing source file");
+            return false;
+        }
+        
         // Realism (size) checking
         // We should test against `getTextOfNode(node)` rather than `node.text`, because `node.text` for large numeric literals can contain "."
         // e.g. `node.text` for numeric literal `1100000000000000000000` is `1.1e21`.

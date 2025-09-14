@@ -332,6 +332,7 @@ import {
     ParenthesizedTypeNode,
     ParsedCommandLine,
     PartiallyEmittedExpression,
+    PipeExpression,
     Placeholder,
     positionIsSynthesized,
     positionsAreOnSameLine,
@@ -1260,7 +1261,17 @@ export function createPrinter(printerOptions: PrinterOptions = {}, handlers: Pri
     var typeArgumentParenthesizerRuleSelector: OrdinalParentheizerRuleSelector<TypeNode> = {
         select: index => index === 0 ? parenthesizer.parenthesizeLeadingTypeArgument : undefined,
     };
-    var emitBinaryExpression = createEmitBinaryExpression();
+    var emitBinaryExpression = createEmitBinaryExpression();        function emitPipeExpression(node: PipeExpression) {
+            // @ts-ignore DEBUG CODE ONLY, REMOVE ME WHEN DONE
+            console.log("🔍 Emitter: emitPipeExpression called - converting a |> b to b(a)");
+        // Convert a |> b to b(a)
+        write("(");
+        emit(node.right);
+        write(")(");
+        emit(node.left);
+        write(")");
+    }
+    
     /* eslint-enable no-var */
 
     reset();
@@ -1957,6 +1968,10 @@ export function createPrinter(printerOptions: PrinterOptions = {}, handlers: Pri
                     return emitPostfixUnaryExpression(node as PostfixUnaryExpression);
                 case SyntaxKind.BinaryExpression:
                     return emitBinaryExpression(node as BinaryExpression);
+                case SyntaxKind.PipeExpression:
+                    // @ts-ignore DEBUG CODE ONLY, REMOVE ME WHEN DONE
+                    console.log("🔍 Emitter: Processing PipeExpression in emitExpression");
+                    return emitPipeExpression(node as PipeExpression);
                 case SyntaxKind.ConditionalExpression:
                     return emitConditionalExpression(node as ConditionalExpression);
                 case SyntaxKind.TemplateExpression:
@@ -3283,6 +3298,13 @@ export function createPrinter(printerOptions: PrinterOptions = {}, handlers: Pri
                         parenthesizeExpressionForNoAsi((node as BinaryExpression).left),
                         (node as BinaryExpression).operatorToken,
                         (node as BinaryExpression).right,
+                    );
+                case SyntaxKind.PipeExpression:
+                    return factory.updatePipeExpression(
+                        node as PipeExpression,
+                        parenthesizeExpressionForNoAsi((node as PipeExpression).left),
+                        (node as PipeExpression).operatorToken,
+                        (node as PipeExpression).right,
                     );
                 case SyntaxKind.ConditionalExpression:
                     return factory.updateConditionalExpression(

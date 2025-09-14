@@ -313,6 +313,10 @@ export function isEqualsGreaterThanToken(node: Node): node is EqualsGreaterThanT
     return node.kind === SyntaxKind.EqualsGreaterThanToken;
 }
 
+export function isBarGreaterThanToken(node: Node): node is Token<SyntaxKind.BarGreaterThanToken> {
+    return node.kind === SyntaxKind.BarGreaterThanToken;
+}
+
 // Identifiers
 
 export function isIdentifier(node: Node): node is Identifier {

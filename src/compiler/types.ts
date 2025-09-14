@@ -104,6 +104,8 @@ export const enum SyntaxKind {
     TildeToken,
     AmpersandAmpersandToken,
     BarBarToken,
+    BarGreaterThanToken,
+    PipeExpression,
     QuestionToken,
     ColonToken,
     AtToken,
@@ -1119,6 +1121,7 @@ export type HasChildren =
     | PrefixUnaryExpression
     | PostfixUnaryExpression
     | BinaryExpression
+    | PipeExpression
     | ConditionalExpression
     | TemplateExpression
     | YieldExpression
@@ -2603,6 +2606,13 @@ export type LogicalOperatorOrHigher =
     | BitwiseOperatorOrHigher
     | LogicalOperator;
 
+// PipeExpression:
+//     LogicalORExpression
+//     PipeExpression `|>` LogicalORExpression
+export type PipeOperatorOrHigher =
+    | LogicalOperatorOrHigher
+    | SyntaxKind.BarGreaterThanToken;
+
 // see: https://tc39.github.io/ecma262/#prod-AssignmentOperator
 export type CompoundAssignmentOperator =
     | SyntaxKind.PlusEqualsToken
@@ -2629,7 +2639,7 @@ export type AssignmentOperator =
 // see: https://tc39.github.io/ecma262/#prod-AssignmentExpression
 export type AssignmentOperatorOrHigher =
     | SyntaxKind.QuestionQuestionToken
-    | LogicalOperatorOrHigher
+    | PipeOperatorOrHigher
     | AssignmentOperator;
 
 // see: https://tc39.github.io/ecma262/#prod-Expression
@@ -2648,6 +2658,13 @@ export interface BinaryExpression extends Expression, Declaration, JSDocContaine
     readonly kind: SyntaxKind.BinaryExpression;
     readonly left: Expression;
     readonly operatorToken: BinaryOperatorToken;
+    readonly right: Expression;
+}
+
+export interface PipeExpression extends Expression, JSDocContainer {
+    readonly kind: SyntaxKind.PipeExpression;
+    readonly left: Expression;
+    readonly operatorToken: Token<SyntaxKind.BarGreaterThanToken>;
     readonly right: Expression;
 }
 
@@ -8233,6 +8250,7 @@ export const enum TransformFlags {
     ContainsLexicalSuper = 1 << 27,
     ContainsUpdateExpressionForIdentifier = 1 << 28,
     ContainsPrivateIdentifierInExpression = 1 << 29,
+    ContainsPipeOperator = 1 << 30,
 
     HasComputedFlags = 1 << 31, // Transform flags have been computed.
 
@@ -8966,6 +8984,8 @@ export interface NodeFactory {
     updatePostfixUnaryExpression(node: PostfixUnaryExpression, operand: Expression): PostfixUnaryExpression;
     createBinaryExpression(left: Expression, operator: BinaryOperator | BinaryOperatorToken, right: Expression): BinaryExpression;
     updateBinaryExpression(node: BinaryExpression, left: Expression, operator: BinaryOperator | BinaryOperatorToken, right: Expression): BinaryExpression;
+    createPipeExpression(left: Expression, operator: Token<SyntaxKind.BarGreaterThanToken>, right: Expression): PipeExpression;
+    updatePipeExpression(node: PipeExpression, left: Expression, operator: Token<SyntaxKind.BarGreaterThanToken>, right: Expression): PipeExpression;
     createConditionalExpression(condition: Expression, questionToken: QuestionToken | undefined, whenTrue: Expression, colonToken: ColonToken | undefined, whenFalse: Expression): ConditionalExpression;
     updateConditionalExpression(node: ConditionalExpression, condition: Expression, questionToken: QuestionToken, whenTrue: Expression, colonToken: ColonToken, whenFalse: Expression): ConditionalExpression;
     createTemplateExpression(head: TemplateHead, templateSpans: readonly TemplateSpan[]): TemplateExpression;

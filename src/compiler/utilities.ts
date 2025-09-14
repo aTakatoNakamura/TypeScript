@@ -1288,10 +1288,22 @@ export function getNonModifierTokenPosOfNode(node: Node, sourceFile?: SourceFile
     return skipTrivia((sourceFile || getSourceFileOfNode(node)).text, lastModifier.end);
 }
 
-/** @internal */
-export function getSourceTextOfNodeFromSourceFile(sourceFile: SourceFile, node: Node, includeTrivia = false): string {
-    return getTextOfNodeFromSourceText(sourceFile.text, node, includeTrivia);
-}
+/** @internal */    export function getSourceTextOfNodeFromSourceFile(sourceFile: SourceFile, node: Node, includeTrivia = false): string {
+        // @ts-ignore DEBUG CODE ONLY, REMOVE ME WHEN DONE
+        // console.log("🔍 Utilities: getSourceTextOfNodeFromSourceFile called", {
+        //     hasSourceFile: !!sourceFile,
+        //     hasText: !!sourceFile?.text,
+        //     nodeKind: node.kind
+        // });
+        
+        // if (!sourceFile?.text) {
+        //     // @ts-ignore DEBUG CODE ONLY, REMOVE ME WHEN DONE
+        //     console.log("🔍 Utilities: sourceFile.text is undefined, returning empty string");
+        //     return "";
+        // }
+        
+        return getTextOfNodeFromSourceText(sourceFile.text, node, includeTrivia);
+    }
 
 function isJSDocTypeExpressionOrChild(node: Node): boolean {
     return !!findAncestor(node, isJSDocTypeExpression);
@@ -5689,6 +5701,11 @@ export const enum OperatorPrecedence {
     //     CoalesceExpression
     Conditional,
 
+    // PipeExpression:
+    //     LogicalORExpression
+    //     PipeExpression `|>` LogicalORExpression
+    Pipe,
+
     // LogicalORExpression:
     //     LogicalANDExpression
     //     LogicalORExpression `||` LogicalANDExpression
@@ -5978,6 +5995,8 @@ export function getBinaryOperatorPrecedence(kind: SyntaxKind): OperatorPrecedenc
             return OperatorPrecedence.Multiplicative;
         case SyntaxKind.AsteriskAsteriskToken:
             return OperatorPrecedence.Exponentiation;
+        case SyntaxKind.BarGreaterThanToken:
+            return OperatorPrecedence.Pipe;
     }
 
     // -1 is lower than all other precedences.  Returning it will cause binary expression

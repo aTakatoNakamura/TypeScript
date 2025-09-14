@@ -2283,6 +2283,10 @@ export function createScanner(
                         }
                     }
 
+                    if (text.charCodeAt(pos + 1) === CharacterCodes.greaterThan) {
+                        pos += 2;
+                        return token = SyntaxKind.BarGreaterThanToken;
+                    }
                     if (charCodeUnchecked(pos + 1) === CharacterCodes.bar) {
                         if (charCodeUnchecked(pos + 2) === CharacterCodes.equals) {
                             return pos += 3, token = SyntaxKind.BarBarEqualsToken;

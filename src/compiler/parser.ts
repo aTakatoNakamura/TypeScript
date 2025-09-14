@@ -16,6 +16,7 @@ import {
     BaseNodeFactory,
     BigIntLiteral,
     BinaryExpression,
+    PipeExpression,
     BinaryOperatorToken,
     BindingElement,
     BindingName,
@@ -781,6 +782,11 @@ const forEachChildTable: ForEachChildTable = {
         return visitNode(cbNode, node.operand);
     },
     [SyntaxKind.BinaryExpression]: function forEachChildInBinaryExpression<T>(node: BinaryExpression, cbNode: (node: Node) => T | undefined, _cbNodes?: (nodes: NodeArray<Node>) => T | undefined): T | undefined {
+        return visitNode(cbNode, node.left) ||
+            visitNode(cbNode, node.operatorToken) ||
+            visitNode(cbNode, node.right);
+    },
+    [SyntaxKind.PipeExpression]: function forEachChildInPipeExpression<T>(node: PipeExpression, cbNode: (node: Node) => T | undefined, _cbNodes?: (nodes: NodeArray<Node>) => T | undefined): T | undefined {
         return visitNode(cbNode, node.left) ||
             visitNode(cbNode, node.operatorToken) ||
             visitNode(cbNode, node.right);
@@ -5663,7 +5669,12 @@ namespace Parser {
                 }
             }
             else {
-                leftOperand = makeBinaryExpression(leftOperand, parseTokenNode(), parseBinaryExpressionOrHigher(newPrecedence), pos);
+                if (token() === SyntaxKind.BarGreaterThanToken) {
+                    leftOperand = makePipeExpression(leftOperand, parseTokenNode(), parseBinaryExpressionOrHigher(newPrecedence), pos);
+                }
+                else {
+                    leftOperand = makeBinaryExpression(leftOperand, parseTokenNode(), parseBinaryExpressionOrHigher(newPrecedence), pos);
+                }
             }
         }
 
@@ -5684,6 +5695,10 @@ namespace Parser {
 
     function makeBinaryExpression(left: Expression, operatorToken: BinaryOperatorToken, right: Expression, pos: number): BinaryExpression {
         return finishNode(factory.createBinaryExpression(left, operatorToken, right), pos);
+    }
+
+    function makePipeExpression(left: Expression, operatorToken: Token<SyntaxKind.BarGreaterThanToken>, right: Expression, pos: number): PipeExpression {
+        return finishNode(factory.createPipeExpression(left, operatorToken, right), pos);
     }
 
     function makeAsExpression(left: Expression, right: TypeNode): AsExpression {
