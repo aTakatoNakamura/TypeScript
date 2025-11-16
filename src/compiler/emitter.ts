@@ -1261,14 +1261,41 @@ export function createPrinter(printerOptions: PrinterOptions = {}, handlers: Pri
     var typeArgumentParenthesizerRuleSelector: OrdinalParentheizerRuleSelector<TypeNode> = {
         select: index => index === 0 ? parenthesizer.parenthesizeLeadingTypeArgument : undefined,
     };
-    var emitBinaryExpression = createEmitBinaryExpression();        function emitPipeExpression(node: PipeExpression) {
-            // @ts-ignore DEBUG CODE ONLY, REMOVE ME WHEN DONE
-            console.log("🔍 Emitter: emitPipeExpression called - converting a |> b to b(a)");
+    var emitBinaryExpression = createEmitBinaryExpression();
+    
+    function emitPipeExpression(node: PipeExpression) {
+        // @ts-ignore DEBUG CODE ONLY, REMOVE ME WHEN DONE
+        console.log("🔍 Emitter: emitPipeExpression called", {
+            hasLeft: !!node.left,
+            hasRight: !!node.right,
+            leftKind: node.left?.kind,
+            rightKind: node.right?.kind,
+            leftIsPipeExpression: node.left?.kind === SyntaxKind.PipeExpression,
+            // @ts-ignore
+            leftText: node.left?.kind === SyntaxKind.NumericLiteral ? node.left.text : undefined
+        });
+        
         // Convert a |> b to b(a)
+        // For chained pipes like (5 |> square) |> double, this will recursively handle the left side
         write("(");
+        // @ts-ignore DEBUG CODE ONLY, REMOVE ME WHEN DONE
+        console.log("🔍 Emitter: About to emit node.right, kind=", node.right.kind);
         emit(node.right);
+        // @ts-ignore DEBUG CODE ONLY, REMOVE ME WHEN DONE
+        console.log("🔍 Emitter: node.right emitted, about to emit node.left, kind=", node.left.kind);
         write(")(");
-        emit(node.left);
+        
+        // Check if left is a PipeExpression and handle it directly
+        if (node.left.kind === SyntaxKind.PipeExpression) {
+            // @ts-ignore DEBUG CODE ONLY, REMOVE ME WHEN DONE
+            console.log("🔍 Emitter: node.left is PipeExpression, calling emitPipeExpression directly");
+            emitPipeExpression(node.left as PipeExpression);
+        } else {
+            emit(node.left);
+        }
+        
+        // @ts-ignore DEBUG CODE ONLY, REMOVE ME WHEN DONE
+        console.log("🔍 Emitter: node.left emitted, closing parens");
         write(")");
     }
     
