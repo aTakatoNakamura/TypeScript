@@ -98,7 +98,8 @@
         "lint": "hereby lint",
         "knip": "hereby knip",
         "format": "dprint fmt",
-        "setup-hooks": "node scripts/link-hooks.mjs"
+        "setup-hooks": "node scripts/link-hooks.mjs",
+        "tsc": "node ./built/local/tsc.js"
     },
     "browser": {
         "fs": false,
